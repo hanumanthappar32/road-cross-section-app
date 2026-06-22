@@ -38,16 +38,15 @@ edited_df = st.data_editor(df, num_rows="dynamic")
 st.markdown("### 🔍 Engineering Verification (IRC:73 Standards)")
 
 # Calculate real-time slopes
-try: 
-  crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
-  if not crown_row.empty:
-    crown_rl = crown_row.iloc[0]["Reduced Level (m)"]
-
-# Left edge slope calculation
+try:
+# Extract crown and edge offsets safely
+crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
 left_edge = edited_df[edited_df["Offset (m)"] < 0.0].iloc[-1]
-left_slope = abs((crown_rl - left_edge["Reduced Level (m)"]) / left_edge["Offset (m)"]) * 100
-
-# Right edge slope calculation
+right_edge = edited_df[edited_df["Offset (m)"] > 0.0].iloc[0]
+except IndexLookupError:
+st.error("Error: Please ensure your data has negative offsets for the Left Edge and positive offsets for the Right Edge.")
+except Exception as e:
+st.error(f"Geometric extraction failed: {e}")ulation
 right_edge = edited_df[edited_df["Offset (m)"] > 0.0].iloc[0]
 right_slope = abs((right_edge["Reduced Level (m)"] - crown_rl) / right_edge["Offset (m)"]) * 100
 
