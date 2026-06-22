@@ -41,9 +41,9 @@ st.markdown("### 🔍 Engineering Verification (IRC:73 Standards)")
 # Ensure this block is indented inside your main function (usually 4 or 8 spaces)
 try:
 # Exactly 8 spaces of indentation from the left margin
-crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
-left_edge = edited_df[edited_df["Offset (m)"] < 0.0].iloc[-1]
-right_edge = edited_df[edited_df["Offset (m)"] > 0.0].iloc[0]
+        crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
+        left_edge = edited_df[edited_df["Offset (m)"] < 0.0].iloc[-1]
+        right_edge = edited_df[edited_df["Offset (m)"] > 0.0].iloc[0]
 except Exception as e:
 st.error(f"Geometric extraction failed: {e}")
 st.error(f"Error extracting geometric parameters: {e}")
