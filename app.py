@@ -38,10 +38,10 @@ edited_df = st.data_editor(df, num_rows="dynamic")
 st.markdown("### 🔍 Engineering Verification (IRC:73 Standards)")
 
 # Calculate real-time slopes
-try:
-crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
-if not crown_row.empty:
-crown_rl = crown_row.iloc[0]["Reduced Level (m)"]
+try: 
+  crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
+  if not crown_row.empty:
+  crown_rl = crown_row.iloc[0]["Reduced Level (m)"]
 
 # Left edge slope calculation
 left_edge = edited_df[edited_df["Offset (m)"] < 0.0].iloc[-1]
