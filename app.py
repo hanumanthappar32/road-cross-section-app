@@ -41,7 +41,7 @@ st.markdown("### 🔍 Engineering Verification (IRC:73 Standards)")
 try: 
   crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
   if not crown_row.empty:
-  crown_rl = crown_row.iloc[0]["Reduced Level (m)"]
+    crown_rl = crown_row.iloc[0]["Reduced Level (m)"]
 
 # Left edge slope calculation
 left_edge = edited_df[edited_df["Offset (m)"] < 0.0].iloc[-1]
