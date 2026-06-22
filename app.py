@@ -29,7 +29,7 @@ edited_df = edited_df.dropna().sort_values(by="Offset (m)").reset_index(drop=Tru
 
 # 2. Safety Check & Structural Geometric Extraction
 try:
-# Safely isolate the critical nodes
+# Extract the crown and side parameters
 crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
 left_side = edited_df[edited_df["Offset (m)"] < 0.0]
 right_side = edited_df[edited_df["Offset (m)"] > 0.0]
@@ -39,7 +39,7 @@ st.error("❌ Critical Error: Crown point (Offset = 0.0) is missing. Please add 
 elif left_side.empty or right_side.empty:
 st.warning("⚠️ Warning: Please input both negative (Left) and positive (Right) offsets to compute bilateral cross-slopes.")
 else:
-# Extract the key design points
+# Extract key design points
 crown_elev = crown_row["Elevation (m)"].values[0]
 left_edge = left_side.iloc[-1] # Closest left point to crown
 right_edge = right_side.iloc[0] # Closest right point to crown
@@ -48,13 +48,14 @@ right_edge = right_side.iloc[0] # Closest right point to crown
 l_offset, l_elev = left_edge["Offset (m)"], left_edge["Elevation (m)"]
 r_offset, r_elev = right_edge["Offset (m)"], right_edge["Elevation (m)"]
 
-# Calculate geometric parameters
+# Calculate distances and falls
 left_distance = abs(l_offset)
 right_distance = abs(r_offset)
 
 left_fall = crown_elev - l_elev
 right_fall = crown_elev - r_elev
 
+# Camber calculation in percentage
 left_camber = (left_fall / left_distance) * 100
 right_camber = (right_fall / right_distance) * 100
 
@@ -63,9 +64,9 @@ col1, col2, col3 = st.columns(3)
 with col1:
 st.metric("Crown Elevation", f"{crown_elev:.3f} m")
 with col2:
-st.metric("Left Camber", f"{left_camber:.2%}", delta=f"{left_camber - 2.5:.2f}% vs IRC Target")
+st.metric("Left Camber", f"{left_camber:.2f}%", delta=f"{left_camber - 2.5:.2f}% vs 2.5% Target")
 with col3:
-st.metric("Right Camber", f"{right_camber:.2%}", delta=f"{right_camber - 2.5:.2f}% vs IRC Target")
+st.metric("Right Camber", f"{right_camber:.2f}%", delta=f"{right_camber - 2.5:.2f}% vs 2.5% Target")
 
 # Plotting the cross-section
 st.markdown("#### 📊 Pavement Profile Preview")
@@ -74,17 +75,14 @@ st.line_chart(data=edited_df, x="Offset (m)", y="Elevation (m)", use_container_w
 # 3. Structural Compliance Verification
 st.markdown("#### ⚖️ IRC Compliance Assessment")
 
-# Verify against IRC:73 recommended minimum camber of 2.5% for bituminous surfaces in heavy rain
+# Verify against IRC:73 recommended minimum camber of 2.0% - 2.5%
 if abs(left_camber) < 2.0 or abs(right_camber) < 2.0:
 st.error("🛑 NON-COMPLIANT: Camber is below 2.0%. High risk of water ponding and hydroplaning (IRC:73).")
 elif abs(left_camber) > 3.0 or abs(right_camber) > 3.0:
-st.warning("⚠️ WARNING: Camber exceeds 3.0%. May cause vehicle instability and excessive shoulder erosion.")
+st.warning("⚠️ WARNING: Camber exceeds 3.0%. High risk of vehicle lateral slip and rapid shoulder erosion.")
 else:
 st.success("✅ COMPLIANT: Camber is within the optimal 2.0% - 2.5% safety envelope.")
 
 except Exception as e:
 st.error(f"❌ Structural parser runtime error: {str(e)}")
-st.info("Check that all entered coordinate inputs are valid numeric values.")
-
-
-
+st.info("Ensure all coordinate inputs are valid numbers and non-empty.")
