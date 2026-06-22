@@ -26,38 +26,31 @@ edited_df = st.data_editor(df_default, num_rows="dynamic", use_container_width=T
 # Clean and sort inputs to ensure geometry calculations align perfectly
 cleaned_df = edited_df.dropna().sort_values(by="Offset (m)").reset_index(drop=True)
 
-# 3. Flat Logical Validation (No Nested Try-Except Block)
+# 3. Flat Logical Validation (Zero nested try-except blocks, strict 4-space indentation)
 crown_row = cleaned_df[cleaned_df["Offset (m)"] == 0.0]
 left_side = cleaned_df[cleaned_df["Offset (m)"] < 0.0]
 right_side = cleaned_df[cleaned_df["Offset (m)"] > 0.0]
 
 if crown_row.empty:
 st.error("❌ Critical Error: Crown point (Offset = 0.0) is missing. Please add a row with Offset = 0.0.")
-
 elif left_side.empty or right_side.empty:
 st.warning("⚠️ Warning: Please input both negative (Left) and positive (Right) offsets to compute bilateral cross-slopes.")
-
 else:
 # Extract key design points
 crown_elev = crown_row["Elevation (m)"].values[0]
 left_edge = left_side.iloc[-1] # Closest left point to crown
 right_edge = right_side.iloc[0] # Closest right point to crown
-
 # Extract values
 l_offset, l_elev = left_edge["Offset (m)"], left_edge["Elevation (m)"]
 r_offset, r_elev = right_edge["Offset (m)"], right_edge["Elevation (m)"]
-
 # Calculate distances and falls
 left_distance = abs(l_offset)
 right_distance = abs(r_offset)
-
 left_fall = crown_elev - l_elev
 right_fall = crown_elev - r_elev
-
 # Camber calculation in percentage
 left_camber = (left_fall / left_distance) * 100
 right_camber = (right_fall / right_distance) * 100
-
 # Display Metrics in Columns
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -66,14 +59,11 @@ with col2:
 st.metric("Left Camber", f"{left_camber:.2f}%", delta=f"{left_camber - 2.5:.2f}% vs 2.5% Target")
 with col3:
 st.metric("Right Camber", f"{right_camber:.2f}%", delta=f"{right_camber - 2.5:.2f}% vs 2.5% Target")
-
 # Plotting the cross-section
 st.markdown("#### 📊 Pavement Profile Preview")
 st.line_chart(data=cleaned_df, x="Offset (m)", y="Elevation (m)", use_container_width=True)
-
 # 4. Structural Compliance Verification
 st.markdown("#### ⚖️ IRC Compliance Assessment")
-
 # Verify against IRC:73 recommended minimum camber of 2.0% - 2.5%
 if abs(left_camber) < 2.0 or abs(right_camber) < 2.0:
 st.error("🛑 NON-COMPLIANT: Camber is below 2.0%. High risk of water ponding and hydroplaning (IRC:73).")
