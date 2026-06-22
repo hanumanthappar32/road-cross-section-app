@@ -137,15 +137,5 @@ data=dxf_string,
 file_name="road_cross_section.dxf",
 mime="application/dxf"
 )
-```
 
----
 
-### 🛡️ Structural Safety & Material Directives
-
-As your engineering consultant, please ensure your design processes align with standard structural rules:
-
-* **Drain Design and Cover (IS 456:2000):** Roadside drains are exposed to aggressive environment cycles (soil chemistry and surface runoff). Ensure you use a minimum concrete grade of **M25** and provide a clear nominal cover of **40 mm** for reinforcement bars (**IS 1786**) to mitigate premature structural corrosion.
-* **Surcharge Loading (IS 875 / IRC:6):** Ensure the concrete retaining side walls of the drain are structurally verified to resist lateral earth pressure combined with wheel-load surcharge from heavy commercial vehicles straying onto the shoulders.
-* **Estimating Construction Rates:** In Indian public works or private highway development, typical excavation works in ordinary soil range between **Rs. 120 to Rs. 200 per cubic meter ($m^3$)**, while structural M25 concrete laying averages **Rs. 6,500 to Rs. 8,500 per cubic meter ($m^3$)** depending on local schedules of rates (SoR).
-By extending this app's mathematical module, the area under the curve between your Ground Level (GL) and Finished Road Level (FRL) can instantly be integrated to compute these exact financial estimates in real-time
