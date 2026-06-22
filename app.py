@@ -1,153 +1,151 @@
+```python
 import streamlit as st
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import ezdxf
 import io
 
-# Attempt to import ezdxf for CAD generation
-try:
-import ezdxf
-except ImportError:
-ezdxf = None
+# Page Configuration
+st.set_page_config(page_title="CivilEng Road Analyst", layout="wide")
 
-# App configuration
-st.set_page_config(page_title="CivilEng Cut & Fill Plotter", layout="wide")
+st.markdown("### 🛣️ CivilEng Road Cross-Section & Drainage Design Utility")
+st.write("Conforming to **IRC:73** (Geometric Design) and **IS 456:2000** (Structural Concrete)")
 
-st.markdown("### Interactive Road Cross-Section Plotting & CAD Utility")
-st.write("Designed in compliance with **IRC:73** (Geometric Layouts) and **IS 456** (Structural Concrete Drains).")
+# Sidebar - Engineering Design Parameters
+st.sidebar.markdown("### 🛠️ Design Parameters")
+road_width = st.sidebar.number_input("Carriageway Width (m)", min_value=3.0, max_value=30.0, value=7.0, step=0.5)
+target_camber = st.sidebar.slider("Target Camber (%) as per IRC:73", min_value=1.0, max_value=4.0, value=2.5, step=0.1)
+shoulder_width = st.sidebar.number_input("Shoulder Width (m)", min_value=0.5, max_value=5.0, value=1.5, step=0.1)
 
-# --- SIDEBAR: INPUT OPTIONS ---
-st.sidebar.header("1. Input Configuration")
-input_mode = st.sidebar.radio("Select Input Method:", ("Manual Table Entry", "Batch CSV Upload"))
+st.sidebar.markdown("### 🪟 Boundary Concrete Drain (IS 456)")
+include_drain = st.sidebar.checkbox("Include Side Drains", value=True)
+drain_depth = st.sidebar.number_input("Drain Depth (m)", min_value=0.3, max_value=2.0, value=0.6, step=0.1)
+drain_width = st.sidebar.number_input("Drain Width (m)", min_value=0.3, max_value=2.0, value=0.5, step=0.1)
 
-# Default Template Data
+# Default input data
 default_data = {
-"Offset (X) [m]": [-7.5, -5.5, -3.5, 0.0, 3.5, 5.5, 7.5],
-"Reduced Level (Y) [m]": [98.5, 98.8, 98.9, 99.0, 98.9, 98.8, 98.5],
-"Feature Description": ["Left Drain Outer", "Left Earthen Shoulder", "Left Paved Shoulder", "Centerline (Crown)", "Right Paved Shoulder", "Right Earthen Shoulder", "Right Drain Outer"]
+"Offset (m)": [-5.0, -3.5, 0.0, 3.5, 5.0],
+"Reduced Level (m)": [98.50, 98.53, 98.60, 98.53, 98.50]
 }
 
-df_input = pd.DataFrame(default_data)
+st.markdown("### 📊 Input Field Survey Data")
+st.write("Modify the survey offsets and Reduced Levels (RL) below. Offset `0.0` represents the Crown/Center Line.")
 
-if input_mode == "Batch CSV Upload":
-uploaded_file = st.sidebar.file_uploader("Upload CSV File (Columns: Offset, RL, Description)", type=["csv"])
-if uploaded_file is not None:
+# Editable Data Table
+df = pd.DataFrame(default_data)
+edited_df = st.data_editor(df, num_rows="dynamic")
+
+# Engineering Calculations & Camber Verification
+st.markdown("### 🔍 Engineering Verification (IRC:73 Standards)")
+
+# Calculate real-time slopes
 try:
-df_input = pd.read_csv(uploaded_file)
-st.sidebar.success("CSV Loaded Successfully!")
+crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
+if not crown_row.empty:
+crown_rl = crown_row.iloc[0]["Reduced Level (m)"]
+
+# Left edge slope calculation
+left_edge = edited_df[edited_df["Offset (m)"] < 0.0].iloc[-1]
+left_slope = abs((crown_rl - left_edge["Reduced Level (m)"]) / left_edge["Offset (m)"]) * 100
+
+# Right edge slope calculation
+right_edge = edited_df[edited_df["Offset (m)"] > 0.0].iloc[0]
+right_slope = abs((right_edge["Reduced Level (m)"] - crown_rl) / right_edge["Offset (m)"]) * 100
+
+col1, col2 = st.columns(2)
+with col1:
+st.metric("Computed Left Camber", f"{left_slope:.2f} %")
+if abs(left_slope - target_camber) <= 0.2:
+st.success("✅ Left Camber complies with IRC:73 guidelines.")
+else:
+st.warning("⚠️ Adjust Left levels to meet the IRC:73 target camber.")
+
+with col2:
+st.metric("Computed Right Camber", f"{right_slope:.2f} %")
+if abs(right_slope - target_camber) <= 0.2:
+st.success("✅ Right Camber complies with IRC:73 guidelines.")
+else:
+st.warning("⚠️ Adjust Right levels to meet the IRC:73 target camber.")
 except Exception as e:
-st.sidebar.error(f"Error loading file: {e}")
-else:
-st.sidebar.info("Upload a CSV file. Using default template below.")
+st.error("Please ensure you have valid offsets including a '0.0' center crown offset for analysis.")
 
-# --- MAIN PAGE: DATA AND PLOT ---
-st.subheader("Cross-Section Data Table")
-# Interactive Data Editor
-edited_df = st.data_editor(df_input, num_rows="dynamic", use_container_width=True)
+# Matplotlib Plotting
+st.markdown("### 📉 Cross-Section Visualizer")
+fig, ax = plt.subplots(figsize=(10, 4.5))
+ax.plot(edited_df["Offset (m)"], edited_df["Reduced Level (m)"], 'o-', color='#1f77b4', label="Pavement Profile")
 
-# Calculations
-offsets = edited_df.iloc[:, 0].values
-rls = edited_df.iloc[:, 1].values
-labels = edited_df.iloc[:, 2].values
+# Draw Drains if checked (IS 456 check visual aid)
+if include_drain:
+leftmost_offset = edited_df["Offset (m)"].min() - shoulder_width
+rightmost_offset = edited_df["Offset (m)"].max() + shoulder_width
+lowest_rl = edited_df["Reduced Level (m)"].min()
 
-# Camber calculation verification (IRC:73 specifies 2% to 2.5% for bituminous surfaces)
-if len(offsets) >= 3:
-crown_idx = np.argmax(rls)
-left_slope = ((rls[crown_idx] - rls[0]) / abs(offsets[crown_idx] - offsets[0])) * 100
-right_slope = ((rls[crown_idx] - rls[-1]) / abs(offsets[-1] - offsets[crown_idx])) * 100
-else:
-left_slope, right_slope = 0.0, 0.0
+# Left Drain Box Drawing
+ax.plot([leftmost_offset, leftmost_offset - drain_width, leftmost_offset - drain_width, leftmost_offset],
+[lowest_rl, lowest_rl, lowest_rl - drain_depth, lowest_rl - drain_depth], color='red', linestyle='--', label="Concrete Drain (IS 456)")
+# Right Drain Box Drawing
+ax.plot([rightmost_offset, rightmost_offset + drain_width, rightmost_offset + drain_width, rightmost_offset],
+[lowest_rl, lowest_rl, lowest_rl - drain_depth, lowest_rl - drain_depth], color='red', linestyle='--')
 
-# --- GRAPH GENERATION (MATPLOTLIB) ---
-fig, ax = plt.subplots(figsize=(12, 6))
-
-# Plotting Ground/Road Profile
-ax.plot(offsets, rls, '-o', color='#2c3e50', linewidth=2.5, label="Finished Road Level (FRL)")
-
-# Plotting layers (Subgrade & Base Layers - Schematic IRC:37 presentation)
-ax.fill_between(offsets, rls, rls - 0.5, color='#bdc3c7', alpha=0.5, label="Pavement Crust / Subgrade (500mm)")
-
-# Annotating Points
-for x, y, label in zip(offsets, rls, labels):
-ax.annotate(f"{label}\n({x:.2f}, {y:.2f})", (x, y), textcoords="offset points",
-xytext=(0,10), ha='center', fontsize=8, fontweight='bold',
-bbox=dict(boxstyle="round,pad=0.3", fc="yellow", alpha=0.3))
-
-ax.set_title("Standard Road Cross-Section Profile (Vertical Exaggeration applied)", fontsize=14, fontweight='bold')
-ax.set_xlabel("Offset from Centerline (X-Axis) [meters]", fontsize=11)
-ax.set_ylabel("Reduced Level / Elevation (Y-Axis) [meters]", fontsize=11)
-ax.grid(True, which='both', linestyle='--', alpha=0.7)
-ax.legend(loc="lower center")
-
-# Adjust limits for visual breathing room
-ax.set_ylim(min(rls) - 1.5, max(rls) + 1.5)
-
+ax.set_xlabel("Offset from Center Line (m)")
+ax.set_ylabel("Reduced Level (RL) (m)")
+ax.grid(True, linestyle=":", alpha=0.6)
+ax.legend()
 st.pyplot(fig)
 
-# --- METRICS & ESTIMATES ---
-col1, col2, col3 = st.columns(3)
-with col1:
-st.metric(label="Calculated Left Camber/Slope", value=f"{left_slope:.2f} %")
-with col2:
-st.metric(label="Calculated Right Camber/Slope", value=f"{right_slope:.2f} %")
-with col3:
-st.metric(label="Total Cross-Section Width", value=f"{abs(max(offsets) - min(offsets)):.2f} m")
-
-# --- EXPORT CAPABILITIES ---
-st.subheader("Export Options")
-exp_col1, exp_col2 = st.columns(2)
-
-# 1. Export Plot as Image/PDF
-with exp_col1:
-img_buf = io.BytesIO()
-fig.savefig(img_buf, format="png", dpi=300, bbox_inches='tight')
-st.download_button(
-label="📥 Download Plot as PNG Image",
-data=img_buf.getvalue(),
-file_name="road_cross_section.png",
-mime="image/png"
-)
-
-# 2. Export CAD DXF File
-with exp_col2:
-if ezdxf:
+# DXF Export Logic using ezdxf
+def generate_dxf(data, draw_drain, d_width, d_depth):
 doc = ezdxf.new('R2010')
 msp = doc.modelspace()
 
-# Add layers
-doc.layers.add(name="ROAD_PROFILE", color=1) # Red
-doc.layers.add(name="TEXT_ANNOTATIONS", color=7) # White
+# Draw Pavement Profile
+points = list(zip(data["Offset (m)"], data["Reduced Level (m)"]))
+for i in range(len(points) - 1):
+msp.add_line(points[i], points[i+1], dxfattribs={'layer': 'ROAD_PROFILE', 'color': 1}) # Red Line
 
-# Convert coordinates to tuple pairs
-points = list(zip(offsets, rls))
-msp.add_lwpolyline(points, dxfattribs={"layer": "ROAD_PROFILE"})
+# Draw Drains in CAD format
+if draw_drain:
+l_offset = data["Offset (m)"].min() - 1.5
+r_offset = data["Offset (m)"].max() + 1.5
+base_rl = data["Reduced Level (m)"].min()
 
-# Add labels to CAD
-for x, y, lbl in zip(offsets, rls, labels):
-msp.add_text(f"{lbl} ({x},{y})", dxfattribs={"height": 0.15, "layer": "TEXT_ANNOTATIONS"}).set_placement((x, y + 0.1))
+# Left Drain CAD Lines
+ld1 = (l_offset, base_rl)
+ld2 = (l_offset - d_width, base_rl)
+ld3 = (l_offset - d_width, base_rl - d_depth)
+ld4 = (l_offset, base_rl - d_depth)
+for p1, p2 in [(ld1, ld2), (ld2, ld3), (ld3, ld4), (ld4, ld1)]:
+msp.add_line(p1, p2, dxfattribs={'layer': 'CONCRETE_DRAIN', 'color': 3}) # Green Line
 
-dxf_buf = io.StringIO()
-doc.write(dxf_buf)
+# Right Drain CAD Lines
+rd1 = (r_offset, base_rl)
+rd2 = (r_offset + d_width, base_rl)
+rd3 = (r_offset + d_width, base_rl - d_depth)
+rd4 = (r_offset, base_rl - d_depth)
+for p1, p2 in [(rd1, rd2), (rd2, rd3), (rd3, rd4), (rd4, rd1)]:
+msp.add_line(p1, p2, dxfattribs={'layer': 'CONCRETE_DRAIN', 'color': 3})
 
+out_stream = io.StringIO()
+doc.write(out_stream)
+return out_stream.getvalue()
+
+st.markdown("### 💾 Export deliverables")
+dxf_string = generate_dxf(edited_df, include_drain, drain_width, drain_depth)
 st.download_button(
-label="📐 Export Direct CAD File (.DXF)",
-data=dxf_buf.getvalue(),
+label="📥 Download CAD Cross-Section (DXF File)",
+data=dxf_string,
 file_name="road_cross_section.dxf",
 mime="application/dxf"
 )
-else:
-st.info("To enable AutoCAD DXF Export, run: `pip install ezdxf` in your workspace.")
 ```
 
 ---
 
-### Estimating Earthwork and Pavement Costs (in Rs.)
+### 🛡️ Structural Safety & Material Directives
 
-In Indian contexts (using standard State Schedule of Rates - **SoR**), cross-sectional drafting directly informs the earthwork estimates.
+As your engineering consultant, please ensure your design processes align with standard structural rules:
 
-* **Excavation / Embankment Soil Filling:** Rates range from **Rs. 150 to Rs. 280 per cubic meter** depending on soil classification (ordinary, hard soil, or soft rock).
-* **Granular Sub-Base (GSB) Layer:** Approximated at **Rs. 1,400 to Rs. 1,800 per cubic meter**.
-* **Wet Mix Macadam (WMM):** Costs approximately **Rs. 2,000 to Rs. 2,500 per cubic meter**.
-* **Bituminous Concrete (BC):** Premium wear course costs approximately **Rs. 8,500 to Rs. 11,000 per cubic meter**.
-
+* **Drain Design and Cover (IS 456:2000):** Roadside drains are exposed to aggressive environment cycles (soil chemistry and surface runoff). Ensure you use a minimum concrete grade of **M25** and provide a clear nominal cover of **40 mm** for reinforcement bars (**IS 1786**) to mitigate premature structural corrosion.
+* **Surcharge Loading (IS 875 / IRC:6):** Ensure the concrete retaining side walls of the drain are structurally verified to resist lateral earth pressure combined with wheel-load surcharge from heavy commercial vehicles straying onto the shoulders.
+* **Estimating Construction Rates:** In Indian public works or private highway development, typical excavation works in ordinary soil range between **Rs. 120 to Rs. 200 per cubic meter ($m^3$)**, while structural M25 concrete laying averages **Rs. 6,500 to Rs. 8,500 per cubic meter ($m^3$)** depending on local schedules of rates (SoR).
 By extending this app's mathematical module, the area under the curve between your Ground Level (GL) and Finished Road Level (FRL) can instantly be integrated to compute these exact financial estimates in real-time
