@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
-# Set page configuration
+# 1. Page Configuration & Header
 st.set_page_config(page_title="Pavement Camber Analyzer", layout="wide")
 
 st.markdown("### 📐 Road Cross-Section & Camber Analyzer")
@@ -11,7 +10,7 @@ st.write(
 "to ensure compliance with Indian Road Congress (IRC) standards."
 )
 
-# 1. Provide a clean, default cross-section (7.0m Carriageway with 2.5% standard cross-fall)
+# 2. Default Cross-Section Data (7.0m Carriageway, 2.5% Camber)
 default_data = {
 "Offset (m)": [-7.0, -3.5, 0.0, 3.5, 7.0],
 "Elevation (m)": [99.825, 99.912, 100.000, 99.912, 99.825]
@@ -25,19 +24,19 @@ st.write("Double-click cells to modify. Ensure 'Offset (m)' contains negative va
 edited_df = st.data_editor(df_default, num_rows="dynamic", use_container_width=True)
 
 # Clean and sort inputs to ensure geometry calculations align perfectly
-edited_df = edited_df.dropna().sort_values(by="Offset (m)").reset_index(drop=True)
+cleaned_df = edited_df.dropna().sort_values(by="Offset (m)").reset_index(drop=True)
 
-# 2. Safety Check & Structural Geometric Extraction
-try:
-# Extract the crown and side parameters
-crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
-left_side = edited_df[edited_df["Offset (m)"] < 0.0]
-right_side = edited_df[edited_df["Offset (m)"] > 0.0]
+# 3. Flat Logical Validation (No Nested Try-Except Block)
+crown_row = cleaned_df[cleaned_df["Offset (m)"] == 0.0]
+left_side = cleaned_df[cleaned_df["Offset (m)"] < 0.0]
+right_side = cleaned_df[cleaned_df["Offset (m)"] > 0.0]
 
 if crown_row.empty:
 st.error("❌ Critical Error: Crown point (Offset = 0.0) is missing. Please add a row with Offset = 0.0.")
+
 elif left_side.empty or right_side.empty:
 st.warning("⚠️ Warning: Please input both negative (Left) and positive (Right) offsets to compute bilateral cross-slopes.")
+
 else:
 # Extract key design points
 crown_elev = crown_row["Elevation (m)"].values[0]
@@ -70,9 +69,9 @@ st.metric("Right Camber", f"{right_camber:.2f}%", delta=f"{right_camber - 2.5:.2
 
 # Plotting the cross-section
 st.markdown("#### 📊 Pavement Profile Preview")
-st.line_chart(data=edited_df, x="Offset (m)", y="Elevation (m)", use_container_width=True)
+st.line_chart(data=cleaned_df, x="Offset (m)", y="Elevation (m)", use_container_width=True)
 
-# 3. Structural Compliance Verification
+# 4. Structural Compliance Verification
 st.markdown("#### ⚖️ IRC Compliance Assessment")
 
 # Verify against IRC:73 recommended minimum camber of 2.0% - 2.5%
@@ -82,7 +81,3 @@ elif abs(left_camber) > 3.0 or abs(right_camber) > 3.0:
 st.warning("⚠️ WARNING: Camber exceeds 3.0%. High risk of vehicle lateral slip and rapid shoulder erosion.")
 else:
 st.success("✅ COMPLIANT: Camber is within the optimal 2.0% - 2.5% safety envelope.")
-
-except Exception as e:
-st.error(f"❌ Structural parser runtime error: {str(e)}")
-st.info("Ensure all coordinate inputs are valid numbers and non-empty.")
