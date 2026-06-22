@@ -38,12 +38,14 @@ edited_df = st.data_editor(df, num_rows="dynamic")
 st.markdown("### 🔍 Engineering Verification (IRC:73 Standards)")
 
 # Calculate real-time slopes
+# Ensure this block is indented inside your main function (usually 4 or 8 spaces)
 try:
-# Extract crown and edge offsets safely
+# Indented exactly 4 spaces relative to the 'try:' statement above
 crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
 left_edge = edited_df[edited_df["Offset (m)"] < 0.0].iloc[-1]
 right_edge = edited_df[edited_df["Offset (m)"] > 0.0].iloc[0]
-except IndexLookupError:
+except Exception as e:
+st.error(f"Error extracting geometric parameters: {e}")
 st.error("Error: Please ensure your data has negative offsets for the Left Edge and positive offsets for the Right Edge.")
 except Exception as e:
 st.error(f"Geometric extraction failed: {e}")ulation
