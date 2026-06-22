@@ -44,22 +44,22 @@ try:
         crown_row = edited_df[edited_df["Offset (m)"] == 0.0]
         left_edge = edited_df[edited_df["Offset (m)"] < 0.0].iloc[-1]
         right_edge = edited_df[edited_df["Offset (m)"] > 0.0].iloc[0]
-except Exception as e:
-st.error(f"Geometric extraction failed: {e}")
-st.error(f"Error extracting geometric parameters: {e}")
-st.error("Error: Please ensure your data has negative offsets for the Left Edge and positive offsets for the Right Edge.")
-except Exception as e:
-st.error(f"Geometric extraction failed: {e}")ulation
-right_edge = edited_df[edited_df["Offset (m)"] > 0.0].iloc[0]
-right_slope = abs((right_edge["Reduced Level (m)"] - crown_rl) / right_edge["Offset (m)"]) * 100
+        except Exception as e:
+        st.error(f"Geometric extraction failed: {e}")
+        st.error(f"Error extracting geometric parameters: {e}")
+        st.error("Error: Please ensure your data has negative offsets for the Left Edge and positive offsets for the Right Edge.")
+        except Exception as e:
+        st.error(f"Geometric extraction failed: {e}")ulation
+        right_edge = edited_df[edited_df["Offset (m)"] > 0.0].iloc[0]
+        right_slope = abs((right_edge["Reduced Level (m)"] - crown_rl) / right_edge["Offset (m)"]) * 100
 
-col1, col2 = st.columns(2)
-with col1:
-st.metric("Computed Left Camber", f"{left_slope:.2f} %")
-if abs(left_slope - target_camber) <= 0.2:
-st.success("✅ Left Camber complies with IRC:73 guidelines.")
+        col1, col2 = st.columns(2)
+        with col1:
+        st.metric("Computed Left Camber", f"{left_slope:.2f} %")
+        if abs(left_slope - target_camber) <= 0.2:
+        st.success("✅ Left Camber complies with IRC:73 guidelines.")
 else:
-st.warning("⚠️ Adjust Left levels to meet the IRC:73 target camber.")
+        st.warning("⚠️ Adjust Left levels to meet the IRC:73 target camber.")
 
 with col2:
 st.metric("Computed Right Camber", f"{right_slope:.2f} %")
